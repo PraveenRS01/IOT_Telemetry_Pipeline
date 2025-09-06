@@ -1,0 +1,32 @@
+# Create: iot-data-simulator/src/main/resources/application.yml
+server:
+  port: 8081
+
+spring:
+  application:
+    name: iot-data-simulator
+
+logging:
+  level:
+    com.iot.telemetry.simulator: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+
+# Simulator configuration
+simulator:
+  generation:
+    enabled: true
+    interval: 5000  # 5 seconds
+  users:
+    count: 3
+  features:
+    - login
+    - dashboard
+    - profile
+    - settings
+    - checkout
+    - search
+    - product_details
+    - cart
+    - payment
+    - help
