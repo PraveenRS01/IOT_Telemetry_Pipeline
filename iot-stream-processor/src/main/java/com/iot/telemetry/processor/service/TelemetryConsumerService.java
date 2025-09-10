@@ -72,8 +72,14 @@ public class TelemetryConsumerService {
         
         logger.info("Processing data for user: {}, feature: {}, action: {}", userId, feature, action);
         
+        Map<String, Object> metrics = parseMetrics(metricsObj);
+        if (metrics == null) {
+            logger.warn("Failed to parse metrics for user: {}, feature: {}", userId, feature);
+            return;
+        }
+
         // 1. Calculate Engagement Metrics
-        EngagementMetrics engagement = calculateEngagementMetrics(userId, sessionId, feature, action, metricsObj);
+        EngagementMetrics engagement = calculateEngagementMetrics(userId, sessionId, feature, action, metrics);
         if (engagement != null) {
             storeEngagementMetrics(engagement);
             updateFeatureEngagement(feature, engagement.getEngagementScore());
@@ -89,6 +95,27 @@ public class TelemetryConsumerService {
         
         // 3. Real-time Dashboard Updates
         updateRealTimeDashboards(userId, feature, engagement, anomalies);
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> parseMetrics(Object metricsObj) {
+        try {
+            if (metricsObj instanceof Map) {
+                // Already a Map, return as is
+                return (Map<String, Object>) metricsObj;
+            } else if (metricsObj instanceof String) {
+                // JSON string, parse it
+                String metricsJson = (String) metricsObj;
+                logger.debug("Parsing metrics JSON: {}", metricsJson);
+                return objectMapper.readValue(metricsJson, Map.class);
+            } else {
+                logger.warn("Unknown metrics type: {}", metricsObj != null ? metricsObj.getClass() : "null");
+                return null;
+            }
+        } catch (Exception e) {
+            logger.error("Error parsing metrics: {}", metricsObj, e);
+            return null;
+        }
     }
     
     @SuppressWarnings("unchecked")
@@ -115,8 +142,11 @@ public class TelemetryConsumerService {
     private double calculateEngagementScore(double responseTime, int errorCount, int clickCount, double sessionDuration) {
         double score = 100.0;
         
-        // Penalize high response times
-        if (responseTime > 2.0) score -= (responseTime - 2.0) * 10;
+        // Convert response time from milliseconds to seconds for calculation
+        double responseTimeSeconds = responseTime / 1000.0;
+        
+        // Penalize high response times (now in seconds)
+        if (responseTimeSeconds > 2.0) score -= (responseTimeSeconds - 2.0) * 10;
         
         // Penalize errors
         score -= errorCount * 15;
@@ -124,7 +154,7 @@ public class TelemetryConsumerService {
         // Reward high click count (engagement)
         score += Math.min(clickCount * 2, 20);
         
-        // Reward longer sessions
+        // Reward longer sessions (sessionDuration is already in seconds)
         score += Math.min(sessionDuration / 60.0 * 5, 15);
         
         return Math.max(0, Math.min(100, score));
@@ -132,40 +162,41 @@ public class TelemetryConsumerService {
     
     @SuppressWarnings("unchecked")
     private List<AnomalyEvent> detectAnomalies(String userId, String sessionId, String feature, 
-                                             String action, Object metricsObj) {
+                                            String action, Object metricsObj) {
         List<AnomalyEvent> anomalies = new ArrayList<>();
         
         if (metricsObj instanceof Map) {
             Map<String, Object> metrics = (Map<String, Object>) metricsObj;
             
-            // 1. High Response Time Anomaly
+            // 1. High Response Time Anomaly (convert to seconds)
             double responseTime = getDoubleValue(metrics, "responseTime", 0.0);
-            if (responseTime > 5.0) {
+            double responseTimeSeconds = responseTime / 1000.0; // Convert to seconds
+            if (responseTimeSeconds > 5.0) {
                 anomalies.add(new AnomalyEvent(userId, sessionId, feature, "HIGH_RESPONSE_TIME", 
-                                             "WARNING", "Response time exceeds 5 seconds", 5.0, responseTime));
+                                            "WARNING", "Response time exceeds 5 seconds", 5.0, responseTimeSeconds));
             }
             
             // 2. High Error Rate Anomaly
             int errorCount = getIntValue(metrics, "errorCount", 0);
             if (errorCount > 3) {
                 anomalies.add(new AnomalyEvent(userId, sessionId, feature, "HIGH_ERROR_RATE", 
-                                             "ERROR", "Error count exceeds 3", 3, errorCount));
+                                            "ERROR", "Error count exceeds 3", 3, errorCount));
             }
             
-            // 3. Low Engagement Anomaly
+            // 3. Low Engagement Anomaly (use corrected calculation)
             double engagementScore = calculateEngagementScore(responseTime, errorCount, 
-                                                           getIntValue(metrics, "clickCount", 1), 
-                                                           getDoubleValue(metrics, "sessionDuration", 0.0));
+                                                        getIntValue(metrics, "clickCount", 1), 
+                                                        getDoubleValue(metrics, "sessionDuration", 0.0));
             if (engagementScore < 30) {
                 anomalies.add(new AnomalyEvent(userId, sessionId, feature, "LOW_ENGAGEMENT", 
-                                             "WARNING", "User engagement is very low", 30.0, engagementScore));
+                                            "WARNING", "User engagement is very low", 30.0, engagementScore));
             }
             
             // 4. Unusual Click Pattern Anomaly
             int clickCount = getIntValue(metrics, "clickCount", 0);
             if (clickCount > 20) {
                 anomalies.add(new AnomalyEvent(userId, sessionId, feature, "UNUSUAL_CLICK_PATTERN", 
-                                             "INFO", "Unusually high click count detected", 20, clickCount));
+                                            "INFO", "Unusually high click count detected", 20, clickCount));
             }
         }
         
