@@ -11,10 +11,10 @@
         <version>1.0.0</version>
     </parent>
 
-    <artifactId>iot-ingestion-service</artifactId>
-    <name>IoT Ingestion Service</name>
+    <artifactId>iot-stream-processor</artifactId>
     <packaging>jar</packaging>
-    <description>Telemetry Data Ingestion Service Module</description>
+    <name>IoT Stream Processor</name>
+    <description>Real-time Stream Processing Service</description>
 
     <dependencies>
         <dependency>
@@ -26,26 +26,16 @@
             <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
         <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-validation</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-data-jpa</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.h2database</groupId>
-            <artifactId>h2</artifactId>
-            <scope>runtime</scope>
-        </dependency>
-        
-        <dependency>
             <groupId>org.springframework.kafka</groupId>
             <artifactId>spring-kafka</artifactId>
         </dependency>
         <dependency>
             <groupId>org.apache.kafka</groupId>
             <artifactId>kafka-clients</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
         </dependency>
     </dependencies>
 
@@ -55,7 +45,7 @@
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
                 <configuration>
-                    <mainClass>com.iot.telemetry.ingestion.IngestionServiceApplication</mainClass>
+                    <mainClass>com.iot.telemetry.processor.StreamProcessorApplication</mainClass>
                 </configuration>
             </plugin>
         </plugins>

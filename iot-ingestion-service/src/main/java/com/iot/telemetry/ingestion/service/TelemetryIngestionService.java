@@ -20,27 +20,38 @@ public class TelemetryIngestionService {
     
     @Autowired
     private TelemetryRepository telemetryRepository;
+
+    @Autowired
+    private KafkaProducerService kafkaProducerService;
     
     public TelemetryData ingestTelemetryData(String userId, String sessionId, String feature, 
                                            String action, LocalDateTime timestamp, Map<String, Object> metrics) {
         
-        logger.info("Ingesting telemetry data for user: {}, session: {}, feature: {}, action: {}", 
-                   userId, sessionId, feature, action);
-        
-        // Create new telemetry data entity
-        TelemetryData telemetryData = new TelemetryData(userId, sessionId, feature, action, timestamp);
-        
-        // Convert metrics map to JSON string (simple implementation)
-        if (metrics != null && !metrics.isEmpty()) {
-            telemetryData.setMetricsJson(convertMetricsToJson(metrics));
+        try {                                    
+            logger.info("Ingesting telemetry data for user: {}, session: {}, feature: {}, action: {}", 
+                    userId, sessionId, feature, action);
+            
+            // Create new telemetry data entity
+            TelemetryData telemetryData = new TelemetryData(userId, sessionId, feature, action, timestamp);
+            
+            // Convert metrics map to JSON string (simple implementation)
+            if (metrics != null && !metrics.isEmpty()) {
+                telemetryData.setMetricsJson(convertMetricsToJson(metrics));
+            }
+            
+            // Save to database
+            TelemetryData savedData = telemetryRepository.save(telemetryData);
+            logger.info("Telemetry data saved to database with ID: {}", savedData.getId());
+            
+            // send data to Kafka for stream processing
+            kafkaProducerService.sendTelemetryData(savedData);
+            logger.info("Telemetry data sent to Kafka for stream processing");
+            
+            return savedData;
+        } catch (Exception e) {
+            logger.error("Error ingesting telemetry data", e);
+            throw new RuntimeException("Failed to ingest telemetry data", e);
         }
-        
-        // Save to database
-        TelemetryData savedData = telemetryRepository.save(telemetryData);
-        
-        logger.info("Successfully ingested telemetry data with ID: {}", savedData.getId());
-        
-        return savedData;
     }
     
     public List<TelemetryData> getTelemetryByUserId(String userId) {

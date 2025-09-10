@@ -4,6 +4,7 @@ import com.iot.telemetry.simulator.models.UserBehaviorData;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import java.util.*;
@@ -12,6 +13,9 @@ import java.util.*;
 public class UserBehaviorSimulator {
 
     private static final Logger logger = LoggerFactory.getLogger(UserBehaviorSimulator.class);
+    
+    @Autowired
+    private TelemetryHttpService telemetryHttpService;
     
     private final Random random = new Random();
     private final List<String> userIds = Arrays.asList("user_001", "user_002", "user_003");
@@ -51,5 +55,8 @@ public class UserBehaviorSimulator {
     public void generateAndLogData() {
         UserBehaviorData data = generateUserBehavior();
         logger.info("Generated telemetry data: {}", data);
+
+        // Send data to ingestion service
+        telemetryHttpService.sendTelemetryData(data);
     }
 }

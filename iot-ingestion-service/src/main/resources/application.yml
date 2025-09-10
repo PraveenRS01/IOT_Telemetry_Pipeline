@@ -33,6 +33,16 @@ logging:
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
 
+# Kafka Configuration
+kafka:
+  bootstrap-servers: localhost:9092
+  topic:
+    telemetry: telemetry-data
+  producer:
+    acks: all
+    retries: 3
+    enable-idempotence: true
+
 management:
   endpoints:
     web:
