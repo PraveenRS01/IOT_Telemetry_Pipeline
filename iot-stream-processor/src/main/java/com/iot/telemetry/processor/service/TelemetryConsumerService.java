@@ -12,6 +12,7 @@ import org.springframework.kafka.support.KafkaHeaders;
 import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Service;
+import org.springframework.web.reactive.function.client.WebClient;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -24,6 +25,9 @@ public class TelemetryConsumerService {
     
     @Autowired
     private ObjectMapper objectMapper;
+    
+    @Autowired
+    private WebClient webClient;
     
     private final AtomicLong processedCount = new AtomicLong(0);
     private final AtomicLong errorCount = new AtomicLong(0);
@@ -62,6 +66,38 @@ public class TelemetryConsumerService {
             logger.error("Error processing telemetry data from Kafka", e);
         }
     }
+
+    private void writeToTimeSeriesDB(String userId, String sessionId, String feature, String action, 
+                                    Map<String, Object> metrics, EngagementMetrics engagement) {
+        try {
+            // Create processed data object
+            Map<String, Object> processedData = new HashMap<>();
+            processedData.put("userId", userId);
+            processedData.put("sessionId", sessionId);
+            processedData.put("feature", feature);
+            processedData.put("action", action);
+            processedData.put("metrics", metrics);
+            processedData.put("engagementScore", engagement != null ? engagement.getEngagementScore() : 0.0);
+            processedData.put("responseTime", getDoubleValue(metrics, "responseTime", 0.0));
+            processedData.put("clickCount", getIntValue(metrics, "clickCount", 0));
+            processedData.put("errorCount", getIntValue(metrics, "errorCount", 0));
+            processedData.put("sessionDuration", getDoubleValue(metrics, "sessionDuration", 0.0));
+            
+            // Send to time series service
+            webClient.post()
+                .uri("http://localhost:8084/api/v1/timeseries/processed-data")
+                .bodyValue(processedData)
+                .retrieve()
+                .bodyToMono(Map.class)
+                .subscribe(
+                    response -> logger.info("Successfully sent processed data to time series service: {}", response),
+                    error -> logger.error("Failed to send processed data to time series service", error)
+                );
+                
+        } catch (Exception e) {
+            logger.error("Error sending processed data to time series service", e);
+        }
+    }
     
     public void processData(Map<String, Object> data) {
         String userId = (String) data.get("userId");
@@ -93,7 +129,10 @@ public class TelemetryConsumerService {
             logger.warn("ANOMALY DETECTED: {} - {}", anomaly.getAnomalyType(), anomaly.getDescription());
         }
         
-        // 3. Real-time Dashboard Updates
+        // 3. Send processed data to Time Series Service
+        writeToTimeSeriesDB(userId, sessionId, feature, action, metrics, engagement);
+        
+        // 4. Real-time Dashboard Updates
         updateRealTimeDashboards(userId, feature, engagement, anomalies);
     }
 

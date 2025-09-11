@@ -31,6 +31,7 @@
         <module>iot-data-simulator</module>
         <module>iot-ingestion-service</module>
         <module>iot-stream-processor</module>
+        <module>iot-time-series-service</module>
     </modules>
 
     <dependencyManagement>
