@@ -1,17 +1,14 @@
 package com.iot.telemetry.simulator.controller;
 
-import java.util.Map;
-import java.util.HashMap;
-
+import com.iot.telemetry.simulator.models.UserBehaviorData;
+import com.iot.telemetry.simulator.service.TelemetryHttpService;
+import com.iot.telemetry.simulator.service.UserBehaviorSimulator;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
-import com.iot.telemetry.simulator.models.UserBehaviorData;
-import com.iot.telemetry.simulator.service.UserBehaviorSimulator;
+import java.util.HashMap;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/v1/simulator")
@@ -20,9 +17,17 @@ public class SimulatorController {
     @Autowired
     private UserBehaviorSimulator simulator;
     
+    @Autowired
+    private TelemetryHttpService telemetryHttpService;
+    
     @GetMapping("/health")
     public ResponseEntity<String> health() {
         return ResponseEntity.ok("Simulator is running!");
+    }
+    
+    @GetMapping("/generate")
+    public ResponseEntity<UserBehaviorData> generateData() {
+        return ResponseEntity.ok(simulator.generateUserBehavior());
     }
 
     @GetMapping("/stats")
@@ -31,17 +36,21 @@ public class SimulatorController {
         stats.put("status", "running");
         stats.put("generationInterval", "5 seconds");
         stats.put("timestamp", System.currentTimeMillis());
+        
+        // Add HTTP service statistics
+        Map<String, Object> httpStats = telemetryHttpService.getStatistics();
+        stats.putAll(httpStats);
+        
         return ResponseEntity.ok(stats);
-    }
-    
-    @GetMapping("/generate")
-    public ResponseEntity<UserBehaviorData> generateData() {
-        return ResponseEntity.ok(simulator.generateUserBehavior());
     }
 
     @PostMapping("/start")
     public ResponseEntity<String> startGeneration() {
-        // This will start the scheduled task
         return ResponseEntity.ok("Data generation started!");
+    }
+    
+    @PostMapping("/stop")
+    public ResponseEntity<String> stopGeneration() {
+        return ResponseEntity.ok("Data generation stopped!");
     }
 }

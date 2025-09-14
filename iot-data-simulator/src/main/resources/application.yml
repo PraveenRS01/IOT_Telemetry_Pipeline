@@ -1,4 +1,3 @@
-# Create: iot-data-simulator/src/main/resources/application.yml
 server:
   port: 8081
 
@@ -30,3 +29,12 @@ simulator:
     - cart
     - payment
     - help
+
+  # Ingestion service configuration
+  ingestion:
+    url: http://localhost:8082
+    
+  # Retry configuration
+  retry:
+    maxAttempts: 3
+    delay: 1000  # 1 second
